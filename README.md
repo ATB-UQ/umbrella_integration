@@ -16,7 +16,7 @@ When using this program please cite the following paper:
 
 Please also cite the GitHub project using the following DOI:
 
-    DOI for GitHub project
+    DOI: 10.5281/zenodo.164996
 
 The calculation of the derivatives, the free energy profile (potential of mean
 force, PMF) is based on the equations in the following paper by Kästner & Thiel:

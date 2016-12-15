@@ -74,7 +74,7 @@ except ImportError as e:
 
 try:
     from helpers.plot_data import simple_plot, create_figure,\
-        add_axis_to_figure, finalise_figure, generate_histogram, plot_hist_to_axis
+        add_axis_to_figure, finalise_figure, generate_histogram, plot_with_kde
     CAN_PLOT = True
 except ImportError as e:
     CAN_PLOT = False
@@ -96,7 +96,8 @@ def run_umbrella_integration(input_files,
     bin_width=None,
     number_bins=None,
     minimum_maximum_value=None,
-    show_plots=CAN_PLOT,
+    plot_derivatives=None,
+    plot_pmf=None,
     integration_error_reference=INTEGRATION_ERROR_REFERENCE_OPTIONS[0],
     output_pmf_file=None,
     position_histogram_plot=None,
@@ -116,7 +117,7 @@ def run_umbrella_integration(input_files,
 
     if position_histogram_plot:
         if CAN_PLOT:
-            generate_window_distributions(input_data, position_histogram_plot, show_plots)
+            generate_window_distributions(input_data, position_histogram_plot)
         else:
             logging.error('Cannot plot histogram due to import error. Please check that you have matplotlib installed.')
     calculate_window_statistics(input_data, n_blocks)
@@ -130,9 +131,9 @@ def run_umbrella_integration(input_files,
     # check whether force constant used for harmonic umbrella constraint is sufficient
     maximum_second_derivative_check(bin_derivatives, bin_centers, input_data)
 
-    if show_plots:
+    if plot_derivatives:
         if CAN_PLOT:
-            simple_plot(bin_centers, bin_derivatives, np.sqrt(bin_var), r"$\xi$", r"$\frac{dA}{d \xi} (kJ/mol)$")
+            simple_plot(bin_centers, bin_derivatives, np.sqrt(bin_var), r"$\xi$", r"$dA/d\xi\ (\mathrm{kJ} \, \mathrm{mol}^{-1})$", fig_name=plot_derivatives, show_auc=False)
         else:
             logging.error('Cannot plot derivatives due to import error. Please check that you have matplotlib installed.')
     if derivatives_file:
@@ -145,9 +146,9 @@ def run_umbrella_integration(input_files,
 
     # shift values such that lowest value is at 0
     integral = integral - np.min(integral)
-    if show_plots:
+    if plot_pmf:
         if CAN_PLOT:
-            simple_plot(reaction_coordinate_positions, integral, np.sqrt(integral_point_var), r"$\xi$", r"$A (kJ/mol)$")
+            simple_plot(reaction_coordinate_positions, integral, np.sqrt(integral_point_var), r"$\xi$", r"$A\ (\mathrm{kJ} \, \mathrm{mol}^{-1})$", fig_name=plot_pmf)
         else:
             logging.error('Cannot plot PMF due to import error. Please check that you have matplotlib installed.')
 
@@ -342,16 +343,16 @@ def window_separation_distance_check(data, temperature):
                 "Johannes Kastner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
             if warn_msg not in displayed_messages:
                 logging.warning(warn_msg)
-                logging.info("Foce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))
-                logging.info("Umbrella equilibrium points used: {0} - {1}".format(window_centers[i], window_centers[i+1]))
+                logging.debug("Foce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))
+                logging.debug("Umbrella equilibrium points used: {0} - {1}".format(window_centers[i], window_centers[i+1]))
                 displayed_messages.append(warn_msg)
         else:
             info_msg = "Distance between umbrellas {0} is within the recommended cutoff of 3/sqrt(BETA*K_fc) = {1:.3g}: "\
                 "Johannes Kastner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
             if info_msg not in displayed_messages:
                 logging.info(info_msg)
-                logging.info("Foce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))
-                logging.info("Umbrella equilibrium points used: {0} - {1}".format(window_centers[i], window_centers[i+1]))
+                logging.debug("\tFoce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))
+                logging.debug("\tUmbrella equilibrium points used: {0} - {1}".format(window_centers[i], window_centers[i+1]))
                 displayed_messages.append(info_msg)
 
 # -------- INPUT / OUTPUT ROUTINES-----------
@@ -385,16 +386,16 @@ def parse_input_files(input_files):
         data[eq_pos] = {"time":np.array(t), "com":np.array(com), "k":fc[0]}
     return data
 
-def generate_window_distributions(data, position_histogram_plot, show_plots):
+def generate_window_distributions(data, position_histogram_plot):
     create_dir(position_histogram_plot)
-    fig_distributions = create_figure(figsize=(12,6))
+    fig_distributions = create_figure(figsize=(6,4))
     ax_distributions = add_axis_to_figure(fig_distributions)
     for _, window_data in sorted(data.items()):
         centers, his, kde = generate_histogram(window_data["com"])
-        plot_hist_to_axis(ax_distributions, centers, his, kde=kde)
+        plot_with_kde(ax_distributions, centers, his, kde=kde)
 
     fig_name="{0}.png".format(position_histogram_plot) if not "." in position_histogram_plot else position_histogram_plot
-    finalise_figure(fig_distributions, ax_distributions, xlabel=r"$\xi$", ylabel="Occurrance", fig_name=fig_name, show=show_plots)
+    finalise_figure(fig_distributions, ax_distributions, xlabel=r"$\xi$", ylabel="occurrence", fig_name=fig_name)
 
 def create_dir(filename):
     if os.path.dirname(filename) and not os.path.exists(os.path.dirname(filename)):
@@ -427,8 +428,12 @@ def parse_commandline():
         help="Number of bin to be used along the reaction coordinate (independent of umbrellas used in the sampling).", action="store", type=int, required=False)
     parser.add_argument("-m", "--minimum_maximum_value",
         help="Minimum and maximum reaction coordinate positions to be considered e.g. -m 0.2 5.5", action="store", type=float, required=False, nargs=2)
-    parser.add_argument("-p", "--show_plots",
-        help="Show plots for: derivatives vs. reaction coordinate, energy vs. reaction coordinate.", action="store_true", required=False, default=True)
+    parser.add_argument("-pd", "--plot_derivatives",
+        help="Plot the derivatives at each evaluation point along the reaction coordinate. File name ending will determine image format; default format is png.",
+         action="store", required=False, default=None)
+    parser.add_argument("-pp", "--plot_pmf",
+        help="Plot the PMF. File name ending will determine image format; default format is png.",
+         action="store", required=False, default=None)
     parser.add_argument("-r", "--integration_error_reference",
         help="Integration error estimation reference point: ({0})".format("|".join(INTEGRATION_ERROR_REFERENCE_OPTIONS)), action="store", required=False)
     parser.add_argument("-ph", "--position_histogram_plot",
@@ -449,7 +454,8 @@ def parse_commandline():
         args.bin_width,
         args.number_bins,
         args.minimum_maximum_value,
-        args.show_plots,
+        args.plot_derivatives,
+        args.plot_pmf,
         args.integration_error_reference,
         args.output_pmf_file,
         args.position_histogram_plot,
@@ -464,7 +470,8 @@ if __name__=="__main__":
     bin_width,
     number_bins,
     minimum_maximum_value,
-    show_plots,
+    plot_derivatives,
+    plot_pmf,
     integration_error_reference,
     output_pmf_file,
     position_histogram_plot,
@@ -478,7 +485,8 @@ if __name__=="__main__":
         number_bins,
         minimum_maximum_value,
         integration_error_reference=integration_error_reference,
-        show_plots=show_plots,
+        plot_derivatives=plot_derivatives,
+        plot_pmf=plot_pmf,
         output_pmf_file=output_pmf_file,
         position_histogram_plot=position_histogram_plot,
         derivatives_file=derivatives_file,

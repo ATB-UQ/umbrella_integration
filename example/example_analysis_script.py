@@ -18,13 +18,16 @@ for f in glob.glob("./data/raw_data/Nafc500*.dat"):
 ui_input_lines = generate_ui_input_lines_merged(run_data, transform_from_relative=False)
 write_output_file(umbrella_integration_data_file, ui_input_lines)
 
-run_umbrella_integration([umbrella_integration_data_file],
-                         298.15,
-                         bin_width=0.2,
-                         minimum_maximum_value=[2.5, 5.1],
-                         integration_error_reference="left",
-                         position_histogram_plot="position_histograms.png",
-                         output_pmf_file="example.pmf",
-                         n_blocks=15,
-                         integration_method="simpsons"
-                         )
+run_umbrella_integration(
+    [umbrella_integration_data_file],
+    298.15,
+    bin_width=0.2,
+    minimum_maximum_value=[2.5, 5.1],
+    integration_error_reference="left",
+    plot_derivatives="derivatives.eps",
+    plot_pmf="pmf.eps",
+    position_histogram_plot="position_histograms.png",
+    output_pmf_file="example.pmf",
+    n_blocks=15,
+    integration_method="trapezoidal",
+    )

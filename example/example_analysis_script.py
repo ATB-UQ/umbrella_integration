@@ -25,9 +25,10 @@ run_umbrella_integration(
     minimum_maximum_value=[2.5, 5.1],
     integration_error_reference="left",
     plot_derivatives="derivatives.eps",
+    derivatives_file="example.derivatives",
     plot_pmf="pmf.eps",
     position_histogram_plot="position_histograms.png",
     output_pmf_file="example.pmf",
     n_blocks=15,
-    integration_method="trapezoidal",
+    integration_method="simpsons",
     )

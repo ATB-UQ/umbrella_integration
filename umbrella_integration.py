@@ -82,10 +82,11 @@ except ImportError as e:
 
 INTEGRATION_ERROR_REFERENCE_OPTIONS = ("left", "right")
 INTEGRATION_METHODS = ("simpsons", "trapezoidal")
-# Block averaging recommended parameter limits as described in Kaestner and Thiel (2006).
+
+# Recommended parameters for block averaging limits as described in Kaestner and Thiel (2006).
 # Note that these are guides only! The block size should be set to the correlation time of
 # the slowest fluctuation in the position data. Block averaged error estimation can provide
-# a reasonable estimate for this provided the slowest fluctuation has been reasonably samples.
+# a reasonable estimate for this provided the slowest fluctuation has been well samples.
 N_BLOCKS_LOWER_LIMIT = 24 # segments
 MINIMUM_BLOCK_SIZE = 100 # frames
 
@@ -124,7 +125,7 @@ def run_umbrella_integration(input_files,
 
     # bin the derivatives (ie combine derivatives from all windows for calculation of final pmf by integration)
     bin_centers = get_bins(sorted(input_data.keys()), bin_width, number_bins, minimum_maximum_value)
-    logging.info("N bins: {0}; bin range: {1}-{2}".format(len(bin_centers), bin_centers[0], bin_centers[-1]))
+    logging.info("N evaluation points: {0}; evaluation point range: {1}-{2}".format(len(bin_centers), bin_centers[0], bin_centers[-1]))
     window_functions = get_window_functions(input_data, temperature)
     bin_derivatives, bin_var = calculate_bin_derivatives(window_functions, bin_centers)
 
@@ -216,6 +217,8 @@ def calculate_bin_derivatives(window_functions, bin_centers, calculate_var=True)
     var_derivatives = np.zeros(len(bin_centers))
     for i, xi_bin in enumerate(bin_centers):
         total_norm_factor = calc_total_norm_factor(N_i_list, p_b_i_list, xi_bin)
+        assert total_norm_factor != 0, "Nomalisation factor is equal to zero, this will produce NaN derivatives. "\
+        "This occures when the umbrella positions do not appropriately cover the reaction coordinate range that has been specified in this calculation."
         p_i_list = [partial(probability_i, N_i, p_b_i, total_norm_factor) for p_b_i, N_i in zip(p_b_i_list, N_i_list)]
         derivatives[i] = dA_dxi_bin(xi_bin, p_i_list, dA_dxi_list)
         if calculate_var:
@@ -245,7 +248,7 @@ def calculate_bin_derivatives_faster(input_data, bin_centers, temperature):
     return da_dxi
 
 # get_bins
-# routine to combine / bin the derivatives from the different windows 
+# routine to combine the derivatives from the different windows
 # to a single data set (based on their corresponding com-distances)
 def get_bins(window_centers, bin_width, number_bins, minimum_maximum_value, exclude_end_points=False):
 
@@ -425,7 +428,7 @@ def parse_commandline():
     bin_group.add_argument("-b", "--bin_width",
         help="Bin width along the reaction coordinate (independent of umbrellas used in the sampling).", action="store", type=float, required=False)
     bin_group.add_argument("-n", "--number_bins",
-        help="Number of bin to be used along the reaction coordinate (independent of umbrellas used in the sampling).", action="store", type=int, required=False)
+        help="Number of evaluation points to be used along the reaction coordinate (independent of umbrellas used in the sampling).", action="store", type=int, required=False)
     parser.add_argument("-m", "--minimum_maximum_value",
         help="Minimum and maximum reaction coordinate positions to be considered e.g. -m 0.2 5.5", action="store", type=float, required=False, nargs=2)
     parser.add_argument("-pd", "--plot_derivatives",
@@ -441,7 +444,7 @@ def parse_commandline():
     parser.add_argument("-o", "--output_pmf_file",
         help="PMF output data file.", action="store", required=False)
     parser.add_argument("-d", "--derivatives_file",
-        help="Write derivative at each bin position.", action="store", required=False, default=False)
+        help="Write derivative at each evalutation position.", action="store", required=False, default=False)
     parser.add_argument("-nb", "--n_blocks",
         help="Number of blocks used in error analysis to calculate block averaged error estimate for each window.", action="store", type=int, required=False, default=N_BLOCKS_LOWER_LIMIT)
     parser.add_argument("-im", "--integration_method",

@@ -7,13 +7,6 @@ Python implementation of the umbrella integration method for potential of mean f
 Authors: Martin Stroet (University of Queensland),
          Evelyn Deplazes (Curtin University, University of Queensland)
 
-
-When using this program please cite the following paper:
-
-    Deplazes E., Stroet M, Passioura T., Chassagnon I., Cristofori-Armstrong B.,
-    King GF., Mark AE., Journal, vol. no. (year)
-    DOI
-
 Please also cite the GitHub project using the following DOI:
 
     DOI: 10.5281/zenodo.164996

@@ -7,9 +7,8 @@
 #
 # When using this code, please cite the following:
 #
-# In preparation:
-# Deplazes E., Stroet M, Passioura T., Chassagnon I., Cristofori-Armstrong B., 
-# King GF., Mark AE., Journal, vol. no. (year), DOI
+# GitHub project using the following DOI:
+#    DOI: 10.5281/zenodo.164996
 #
 # Kaestner J. and Thiel W., J. Chem. Phys. 123, 144104 (2005)
 # doi: 10.1063/1.2052648 

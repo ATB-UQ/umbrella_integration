@@ -1,9 +1,9 @@
 # Example script for running umbrella integration
 import sys
 import glob
-from os.path import basename
+from os.path import basename, dirname, abspath
+sys.path.append(dirname(dirname(abspath(__file__))))
 
-sys.path.append("../")
 from format_input_data import generate_ui_input_lines_merged, write_output_file
 from umbrella_integration import run_umbrella_integration
 
@@ -23,12 +23,13 @@ run_umbrella_integration(
     298.15,
     bin_width=0.2,
     minimum_maximum_value=[2.5, 5.1],
-    integration_error_reference="left",
-    plot_derivatives="derivatives.eps",
+    integration_error_reference="right",
+    plot_derivatives="derivatives.pdf",
     derivatives_file="example.derivatives",
-    plot_pmf="pmf.eps",
+    plot_pmf="pmf.pdf",
     position_histogram_plot="position_histograms.png",
     output_pmf_file="example.pmf",
     n_blocks=15,
     integration_method="simpsons",
+    integration_error_analysis_method="Kaestner",
     )

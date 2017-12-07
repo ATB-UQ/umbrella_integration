@@ -63,6 +63,9 @@ import os
 import logging
 import argparse
 from functools import partial
+import sys
+
+sys.path.append(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 try:
     from scipy.integrate import simps
@@ -78,6 +81,12 @@ try:
 except ImportError as e:
     CAN_PLOT = False
     print "An error occurred while importing helpers.plot_data, plotting will be disabled: {0}".format(e)
+
+try:
+    from integration_errors.calculate_error import trapz_integrate_with_uncertainty
+    CAN_USE_TRAPZ_INTEGRATION_ERRORS = True
+except ImportError as e:
+    CAN_USE_TRAPZ_INTEGRATION_ERRORS = False
 
 INTEGRATION_ERROR_REFERENCE_OPTIONS = ("left", "right")
 INTEGRATION_METHODS = ("simpsons", "trapezoidal")
@@ -103,7 +112,9 @@ def run_umbrella_integration(input_files,
     position_histogram_plot=None,
     derivatives_file=False,
     n_blocks=N_BLOCKS_LOWER_LIMIT,
-    integration_method="trapezoidal"):
+    integration_method="trapezoidal",
+    integration_error_analysis_method="Kaestner",
+    ):
 
     if not input_files:
         logging.error("No input files found!")
@@ -142,7 +153,8 @@ def run_umbrella_integration(input_files,
     # integrate derivatives to calculate final PMF, incl. propagation of errors and plot data
     reaction_coordinate_positions, integral = integrate_derivatives(bin_centers, bin_derivatives, integration_method)
     mu_sigma_windows = np.mean([window_data["sigma_xi_b_i"] for window_data in input_data.values()])
-    integral_point_var = integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows, integration_method, integration_error_reference=integration_error_reference)
+    integral_point_var = integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows,
+        integration_method, integration_error_reference=integration_error_reference, integration_error_analysis_method=integration_error_analysis_method)
 
     # shift values such that lowest value is at 0
     integral = integral - np.min(integral)
@@ -272,18 +284,44 @@ def get_bins(window_centers, bin_width, number_bins, minimum_maximum_value, excl
 # -------- ROUTINES FOR ERROR ANALYSIS -----------
 
 # routine to calculate the error in the integration of derivatives when calculating the final PMF 
-def integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows, integration_method, integration_error_reference=False):
+def integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows,
+    integration_method, integration_error_reference="left", integration_error_analysis_method="Kaestner"):
+
     n_remove = 1 if integration_method == "trapezoidal" else 2 # 2 for simpsons
-    interval_indexes = range(len(bin_derivatives)-n_remove)
-    if integration_error_reference == "right":
-        return [var_delta_A(bin_var[-i-n_remove:], bin_centers[-i-n_remove:], mu_sigma_windows) for i in interval_indexes][::-1]
+    interval_indexes = range(len(bin_centers)-n_remove)
+
+    if integration_error_analysis_method == "trapz_analysis" and integration_method == "trapezoidal" and CAN_USE_TRAPZ_INTEGRATION_ERRORS:
+        if integration_error_reference == "right":
+            return [
+                trapz_integration_error_analysis(bin_centers[-i-n_remove:], bin_derivatives[-i-n_remove:], bin_var[-i-n_remove:])
+                for i in interval_indexes
+                ][::-1]
+        else:
+            return [
+                trapz_integration_error_analysis(bin_centers[:i+n_remove], bin_derivatives[:i+n_remove], bin_var[:i+n_remove])
+                for i in interval_indexes
+                ]
+    elif integration_error_analysis_method == "Kaestner":
+        if integration_error_reference == "right":
+            return [var_delta_A(bin_var[-i-n_remove:], bin_centers[-i-n_remove:], mu_sigma_windows) for i in interval_indexes][::-1]
+        else:
+            return [var_delta_A(bin_var[:i+n_remove], bin_centers[:i+n_remove], mu_sigma_windows) for i in interval_indexes]
     else:
-        return [var_delta_A(bin_var[:i+n_remove], bin_centers[:i+n_remove], mu_sigma_windows) for i in interval_indexes]
+        if integration_error_analysis_method == "trapz_analysis":
+            raise Exception("To use trapezoidal integration error analysis: (1) select trapezoidal integration method, " \
+            "(2) ensure the integration_errors (<github address here>) module is in your python path.")
+        else:
+            raise Exception("Unknown integration method: {0}".format(integration_error_analysis_method))
+
+def trapz_integration_error_analysis(xs, ys, es):
+    if len(xs) == 1:
+        return 0.0
+    return trapz_integrate_with_uncertainty(xs, ys, np.sqrt(es))[1]
 
 # Eq. 15 Kaestner and Thiel 2006
 def var_delta_A(var_derivatives, xis, mu_sigma_windows):
     if xis[-1] == xis[0]:
-        return 0
+        return 0.0
     mu_var_derivatives = np.mean(var_derivatives)
     delta_xi = abs(xis[-1] - xis[0])
     return mu_var_derivatives*(delta_xi*mu_sigma_windows*np.sqrt(2*np.pi) - 2.0*mu_sigma_windows**2)
@@ -313,7 +351,7 @@ def get_segmented_window_statistics(com_distances, block_size):
     return np.array(block_means), np.array(block_vars)
 
 def maximum_second_derivative_check(derivatives, bin_centers, input_data):
-    caveat = "Johannes Kastner and Walter Thiel 2006 (DOI: 10.1063/1.2206775). NOTE: this implementation uses numerical second derivatives to estimate kappa which can be very sensitive to "\
+    caveat = "Johannes Kaestner and Walter Thiel 2006 (DOI: 10.1063/1.2206775). NOTE: this implementation uses numerical second derivatives to estimate kappa which can be very sensitive to "\
         "noise in the data and thus the result should be treated with caution."
     ddf_ddx = np.diff(derivatives)/np.diff(bin_centers)
     kappa, bin_center = sorted(zip(ddf_ddx, bin_centers[:len(ddf_ddx)]))[0]
@@ -342,7 +380,7 @@ def window_separation_distance_check(data, temperature):
         window_size_cutoff = 3./np.sqrt(BETA*max_fc)
         if window_delta > window_size_cutoff:
             warn_msg = "Distance between umbrellas {0} is greater than the recommended cutoff of 3/sqrt(BETA*K_fc) = {1:.3g}: "\
-                "Johannes Kastner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
+                "Johannes Kaestner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
             if warn_msg not in displayed_messages:
                 logging.warning(warn_msg)
                 logging.debug("Foce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))
@@ -350,7 +388,7 @@ def window_separation_distance_check(data, temperature):
                 displayed_messages.append(warn_msg)
         else:
             info_msg = "Distance between umbrellas {0} is within the recommended cutoff of 3/sqrt(BETA*K_fc) = {1:.3g}: "\
-                "Johannes Kastner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
+                "Johannes Kaestner and Walter Thiel 2006 (DOI: 10.1063/1.2206775)".format(window_delta, window_size_cutoff)
             if info_msg not in displayed_messages:
                 logging.info(info_msg)
                 logging.debug("\tFoce constant was: {0:.3g} kJ mol^-1 distance^-2".format(max_fc))

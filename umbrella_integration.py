@@ -312,7 +312,7 @@ def integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_wind
     else:
         if integration_error_method == "trapz_analysis":
             raise Exception("To use trapezoidal integration error analysis: (1) select trapezoidal integration method, " \
-            "(2) ensure the integration_errors (<github address here>) module is in your python path.")
+            "(2) ensure the integration_errors (github.com/martinstroet/trapz_errors) module is in your python path.")
         else:
             raise Exception("Unknown integration method: {0}".format(integration_error_method))
 

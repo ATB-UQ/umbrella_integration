@@ -104,7 +104,7 @@ Other input parameters include:
      -iem integration_error_method
         Method used to estimate numerical integration error. Kaestner for method described in
         Johannes Kaestner and Walter Thiel 2006 (DOI: 10.1063/1.2206775), trapz_analysis for
-        integration_errors method available from: <github address here>
+        integration_errors method available from: github.com/martinstroet/trapz_errors
      -o output_pmf_file
         Name of output file that contains the final PMF.
         Format, col 1 = reaction coordinate, col 2 = energy, col 3 = uncertainty

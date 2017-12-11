@@ -30,6 +30,6 @@ run_umbrella_integration(
     position_histogram_plot="position_histograms.png",
     output_pmf_file="example.pmf",
     n_blocks=15,
-    integration_method="simpsons",
-    integration_error_analysis_method="Kaestner",
+    integration_method="trapezoidal",
+    integration_error_method="trapz_analysis",
     )

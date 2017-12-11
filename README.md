@@ -12,15 +12,15 @@ Please also cite the GitHub project using the following DOI:
     DOI: 10.5281/zenodo.164996
 
 The calculation of the derivatives, the free energy profile (potential of mean
-force, PMF) is based on the equations in the following paper by Kästner & Thiel:
+force, PMF) is based on the equations in the following paper by Kaestner & Thiel:
 
-    Kästner J. and Thiel W., J. Chem. Phys. 123, 144104 (2005)
+    Kaestner J. and Thiel W., J. Chem. Phys. 123, 144104 (2005)
     doi: 10.1063/1.2052648
 
 The estimates of uncertainties for the PMF are based on equations in
-the equations in the following paper by Kästner & Thiel:
+the equations in the following paper by Kaestner & Thiel:
 
-    Kästner J. and Thiel W., J. Chem. Phys. 124, 234106 (2006)
+    Kaestner J. and Thiel W., J. Chem. Phys. 124, 234106 (2006)
     doi: 10.1063/1.2206775
 
 
@@ -28,7 +28,7 @@ the equations in the following paper by Kästner & Thiel:
 About the program
 --------------------
 
-umbrella_integration implements the umbrella integration method for the calculation of a potential of mean force (PMF) as described by Kästner and Thiel (2005, J. Chem. Phys.). Also implemented is the error estimation method described in Kästner and Thiel (2006, J. Chem. Phys.). The program is independent of the MD package used for the umbrella sampling simulations. All the information required as input can easily be extracted and/or calculated from the trajectories or other simulation output files.
+umbrella_integration implements the umbrella integration method for the calculation of a potential of mean force (PMF) as described by Kaestner and Thiel (2005, J. Chem. Phys.). Also implemented is the error estimation method described in Kaestner and Thiel (2006, J. Chem. Phys.). The program is independent of the MD package used for the umbrella sampling simulations. All the information required as input can easily be extracted and/or calculated from the trajectories or other simulation output files.
 
 The project contains the following two modules:
 - umbrella_integration.py: calculates the PMF along with error estimates
@@ -42,9 +42,9 @@ No assumptions are made about the nature of the reaction coordinate, only that i
 
 #### One-dimensional only
 The program only works for a one-dimensional PMF i.e. a single reaction
-coordinate. The following paper by Kästner describes an extension of umbrella
+coordinate. The following paper by Kaestner describes an extension of umbrella
 integration for two or more reaction coordinates:
-Kästner J., J. Chem. Phys. 131, 034109 (2009) http://dx.doi.org/10.1063/1.3175798
+Kaestner J., J. Chem. Phys. 131, 034109 (2009) http://dx.doi.org/10.1063/1.3175798
 
 #### Restraining potential
 The program currently only handles harmonic bias potentials. However extending the program to handle
@@ -101,6 +101,10 @@ Other input parameters include:
      -im integration_method
         Numerical method used to the integrate derivatives. Simpon's method has a lower error
         for smooth data, while the trapezoidal method is more robust on noisy data.
+     -iem integration_error_method
+        Method used to estimate numerical integration error. Kaestner for method described in
+        Johannes Kaestner and Walter Thiel 2006 (DOI: 10.1063/1.2206775), trapz_analysis for
+        integration_errors method available from: <github address here>
      -o output_pmf_file
         Name of output file that contains the final PMF.
         Format, col 1 = reaction coordinate, col 2 = energy, col 3 = uncertainty

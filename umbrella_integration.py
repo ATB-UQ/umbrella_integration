@@ -89,7 +89,9 @@ except ImportError as e:
     CAN_USE_TRAPZ_INTEGRATION_ERRORS = False
 
 INTEGRATION_ERROR_REFERENCE_OPTIONS = ("left", "right")
-INTEGRATION_METHODS = ("simpsons", "trapezoidal")
+INTEGRATION_METHODS = ("Simpsons", "trapezoidal")
+INTEGRATION_ERROR_METHODS = ("Kaestner", "trapz_analysis")
+
 
 # Recommended parameters for block averaging limits as described in Kaestner and Thiel (2006).
 # Note that these are guides only! The block size should be set to the correlation time of
@@ -112,14 +114,14 @@ def run_umbrella_integration(input_files,
     position_histogram_plot=None,
     derivatives_file=False,
     n_blocks=N_BLOCKS_LOWER_LIMIT,
-    integration_method="trapezoidal",
-    integration_error_analysis_method="Kaestner",
+    integration_method=INTEGRATION_METHODS[0], #"Simpsons"
+    integration_error_method=INTEGRATION_ERROR_METHODS[0], #"Kaestner"
     ):
 
     if not input_files:
         logging.error("No input files found!")
         return
-    if integration_method == "simpsons" and not SCIPY:
+    if integration_method == "Simpsons" and not SCIPY:
         logging.error("Cannot integration with Simpson's method due to import error. Please install scipy for this feature. Will continue with Trapezoidal method.")
         integration_method = "trapezoidal"
     input_data = parse_input_files(input_files)
@@ -154,7 +156,7 @@ def run_umbrella_integration(input_files,
     reaction_coordinate_positions, integral = integrate_derivatives(bin_centers, bin_derivatives, integration_method)
     mu_sigma_windows = np.mean([window_data["sigma_xi_b_i"] for window_data in input_data.values()])
     integral_point_var = integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows,
-        integration_method, integration_error_reference=integration_error_reference, integration_error_analysis_method=integration_error_analysis_method)
+        integration_method, integration_error_reference=integration_error_reference, integration_error_method=integration_error_method)
 
     # shift values such that lowest value is at 0
     integral = integral - np.min(integral)
@@ -169,7 +171,7 @@ def run_umbrella_integration(input_files,
 
 def integrate_derivatives(bin_centers, bin_derivatives, integration_method):
 
-    if integration_method == "simpsons":
+    if integration_method == "Simpsons":
         xs, integral = zip(*[(bin_centers[i+1], simps(bin_derivatives[:i + 2], bin_centers[:i + 2])) for i in range(len(bin_derivatives) - 2)])
     elif integration_method == "trapezoidal":
         xs, integral = zip(*[(np.mean([bin_centers[i], bin_centers[i+1]]), np.trapz(bin_derivatives[:i + 1], bin_centers[:i + 1])) for i in range(len(bin_derivatives) - 1)])
@@ -285,12 +287,13 @@ def get_bins(window_centers, bin_width, number_bins, minimum_maximum_value, excl
 
 # routine to calculate the error in the integration of derivatives when calculating the final PMF 
 def integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_windows,
-    integration_method, integration_error_reference="left", integration_error_analysis_method="Kaestner"):
+    integration_method=INTEGRATION_METHODS[0], integration_error_reference=INTEGRATION_ERROR_REFERENCE_OPTIONS[0],
+    integration_error_method=INTEGRATION_ERROR_METHODS[0]):
 
     n_remove = 1 if integration_method == "trapezoidal" else 2 # 2 for simpsons
     interval_indexes = range(len(bin_centers)-n_remove)
 
-    if integration_error_analysis_method == "trapz_analysis" and integration_method == "trapezoidal" and CAN_USE_TRAPZ_INTEGRATION_ERRORS:
+    if integration_error_method == "trapz_analysis" and integration_method == "trapezoidal" and CAN_USE_TRAPZ_INTEGRATION_ERRORS:
         if integration_error_reference == "right":
             return [
                 trapz_integration_error_analysis(bin_centers[-i-n_remove:], bin_derivatives[-i-n_remove:], bin_var[-i-n_remove:])
@@ -301,17 +304,17 @@ def integral_point_variance(bin_centers, bin_derivatives, bin_var, mu_sigma_wind
                 trapz_integration_error_analysis(bin_centers[:i+n_remove], bin_derivatives[:i+n_remove], bin_var[:i+n_remove])
                 for i in interval_indexes
                 ]
-    elif integration_error_analysis_method == "Kaestner":
+    elif integration_error_method == "Kaestner":
         if integration_error_reference == "right":
             return [var_delta_A(bin_var[-i-n_remove:], bin_centers[-i-n_remove:], mu_sigma_windows) for i in interval_indexes][::-1]
         else:
             return [var_delta_A(bin_var[:i+n_remove], bin_centers[:i+n_remove], mu_sigma_windows) for i in interval_indexes]
     else:
-        if integration_error_analysis_method == "trapz_analysis":
+        if integration_error_method == "trapz_analysis":
             raise Exception("To use trapezoidal integration error analysis: (1) select trapezoidal integration method, " \
             "(2) ensure the integration_errors (<github address here>) module is in your python path.")
         else:
-            raise Exception("Unknown integration method: {0}".format(integration_error_analysis_method))
+            raise Exception("Unknown integration method: {0}".format(integration_error_method))
 
 def trapz_integration_error_analysis(xs, ys, es):
     if len(xs) == 1:
@@ -485,7 +488,9 @@ def parse_commandline():
     parser.add_argument("-nb", "--n_blocks",
         help="Number of blocks used in error analysis to calculate block averaged error estimate for each window.", action="store", type=int, required=False, default=N_BLOCKS_LOWER_LIMIT)
     parser.add_argument("-im", "--integration_method",
-        help="Integration method used to numerically integration derivatives.", action="store", required=False, default="simpsons")
+        help="Integration method used to numerically integration derivatives.", action="store", required=False, default=INTEGRATION_METHODS[0])
+    parser.add_argument("-iem", "--integration_error_method",
+        help="Method used to estimate numerical integration error.", action="store", required=False, default=INTEGRATION_ERROR_METHODS[0])
 
     args = parser.parse_args()
 
@@ -502,6 +507,7 @@ def parse_commandline():
         args.derivatives_file,
         args.n_blocks,
         args.integration_method,
+        args.integration_error_method,
         )
 
 if __name__=="__main__":
@@ -517,7 +523,9 @@ if __name__=="__main__":
     position_histogram_plot,
     derivatives_file,
     n_blocks,
-    integration_method) = parse_commandline()
+    integration_method,
+    integration_error_method,
+    ) = parse_commandline()
 
     run_umbrella_integration(input_files,
         temperature,
@@ -531,4 +539,6 @@ if __name__=="__main__":
         position_histogram_plot=position_histogram_plot,
         derivatives_file=derivatives_file,
         n_blocks=n_blocks,
-        integration_method=integration_method)
+        integration_method=integration_method,
+        integration_error_method=integration_error_method,
+        )

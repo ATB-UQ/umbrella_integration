@@ -79,8 +79,8 @@ Other input parameters include:
         col 1 = time (while not used in the PMF calculation directly it is useful when assessing
              the convergence of umbrella simulations)
         col 2 = instantaneous value of reaction coordinate
-        col 2 = centre (equilibrium position) of the harmonic potential used in the umbrella simulation
-        col 1 = harmonic force constant used for the umbrella simulation in kJ mol^-1 distance^-2
+        col 3 = centre (equilibrium position) of the harmonic potential used in the umbrella simulation
+        col 4 = harmonic force constant used for the umbrella simulation in kJ mol^-1 distance^-2
      -t temperature
         Temperature at which the calculation is to be performed.
      -b bin_width (required if -n number_bins not provided)
